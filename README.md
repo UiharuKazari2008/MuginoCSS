@@ -9,6 +9,7 @@ CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
 4. Install Waifu2x and confimed that it works (Here: https://github.com/nagadomi/waifu2x)
   1. Use (https://github.com/nagadomi/waifu2x/commit/b27ba28e1727454690d1ac12edbce8bb399015cc) as your install guide as he has not updated his guide and you will fail without this
 5. Install uuid package
+6. Install ImageMagick package
 
 ## Install
 1. Pull this down somewhere
