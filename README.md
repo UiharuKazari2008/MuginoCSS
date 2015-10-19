@@ -1,5 +1,5 @@
-# MuginoCSS
 ![My image](https://github.com/UiharuKazari2008/MuginoCSS/blob/master/img/MuginoCCS.jpg)
+# MuginoCSS
 Mugino CUDA Super Scaler is a batch image scaler that uses Waifu2x
 CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
 
