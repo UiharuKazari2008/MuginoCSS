@@ -1,7 +1,6 @@
 ![My image](https://github.com/UiharuKazari2008/MuginoCSS/blob/master/img/MuginoCCS.jpg)
 # MuginoCSS
-Mugino CUDA Super Scaler is a batch image scaler that uses Waifu2x
-CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
+Mugino CUDA Super Scaler is a batch/project image scaler that uses Waifu2x, MCSS comes with EMPH which breaks up very large images into small chunks that are scaled and then recomplied, this allows you to 2x items from 20K(longest edge) to 40K!!
 
 ## Prerequisites
 1. Linux ( I am running Ubuntu 14.04.3 LTS)
@@ -11,7 +10,7 @@ CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
   1. Use (https://github.com/nagadomi/waifu2x/commit/b27ba28e1727454690d1ac12edbce8bb399015cc) as your install guide as he has not updated his guide and you will fail without this
 5. Install uuid package
 6. Install ImageMagick package
-7. Install 
+7. Install dialog package
 
 ## Install
 1. Pull this down somewhere
@@ -25,7 +24,7 @@ CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
 ## Usage
 ### One Job
 1. Put images into <Master Input>/2x
-2. Run Mugino CSS with shortcut or "bash /opt/mugino-css/mcss-run"
+2. Run Mugino CSS with shortcut or "bash /opt/mugino-css/mcss-run.sh"
 3. Select Single Job
 4. Select mode.
 5. Wait
@@ -34,7 +33,7 @@ CSS comes with EMPH, this allows you to 2x items from 20K(longest edge)!
 
 ### Multi Job
 1. Put folders of images into <Batch Folder>
-2. Run "bash /opt/mugino-css/mcss-run
+2. Run "bash /opt/mugino-css/mcss-run.sh
 3. Select Multi Job
 4. Select mode.
 5. Wait
