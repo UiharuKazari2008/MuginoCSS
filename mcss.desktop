@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Terminal=true
-Name=MuginoCCS
+Name=MuginoCSS
 Icon=/opt/mugino-css/icon.png
-Exec=/opt/mugino-css/mcss-run
+Exec=/opt/mugino-css/mcss-run.sh

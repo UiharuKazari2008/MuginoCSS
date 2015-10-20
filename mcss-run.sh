@@ -4,45 +4,45 @@
 # Mugino CUDA Super Scaler for *nix
 #
 
- echo "Wait for code to load..."
-
 #########################################################################################################
 ################################### init vars ###################################
 
 # Define Main Back Title and GPU Name
-mastertitle="Mugino CUDA Super Scaler v1.72"
+mastertitle="Mugino CUDA Super Scaler v1.82_20-10-2015"
 gpuname="$(nvidia-smi -q | grep "Product Name " | cut -c 39-)"
-gpucores="$(/cuda/NVIDIA_CUDA-7.0_Samples/1_Utilities/deviceQuery/deviceQuery | grep "CUDA Cores")"
+gpucores="$(/cuda/NVIDIA_CUDA-7.5_Samples/1_Utilities/deviceQuery/deviceQuery | grep "CUDA Cores")"
 
 # Define Locations
-export dir_master_in="/photodata/Import"
-export dir_master_out="/photodata/Output"
-export dir_emph_in="/photodata/tmp/m-emph/input"
-export dir_emph_out="/photodata/tmp/emph/ouput"
-export dir_emph_blocks="/photodata/tmp/emph/blks"
-export dir_emph_blocks_done="/photodata/tmp/emph/blocks-comp"
-export dir_emph_ocd="/photodata/tmp/emph/oc-data"
-export dir_std_in="/photodata/tmp/std/in"
-export dir_std_out="/photodata/tmp/std/out"
-export dir_css_in="/photodata/tmp/css"
-export dir_css_out="/photodata/tmp/css-out"
-export dir_ccs_log="/photodata"
-export dir_ccs_lib="/opt/mugino-css/lib"
-export dir_master_batch_in="/photodata/Batch"
+export dir_master_in="/home/mugino/Input"
+export dir_master_out="/home/mugino/Output"
+export dir_master_batch_in="/home/mugino/Batch"
+export dir_ccs_log="/mnt/photostor0"
+export dir_tmp="/mnt/photostor0"
+
+
+# Make Temp Dirs
+export dir_emph_in="${dir_tmp}/mcss/input"
+export dir_emph_out="${dir_tmp}/mcss/ouput"
+export dir_emph_blocks="${dir_tmp}/mcss/blks"
+export dir_emph_blocks_done="${dir_tmp}/mcss/blks-output"
+export dir_emph_ocd="${dir_tmp}/mcss/xdata-emph"
+export dir_std_ocd="${dir_tmp}/mcss/xdata-std"
+export dir_std_in="${dir_tmp}/mcss/std/in"
+export dir_std_out="${dir_tmp}/mcss/std/out"
+export dir_css_in="${dir_tmp}/mcss/css"
+
 
 # Check if Locations exixt, if not make them
-[ -d ${dir_master_out}/unfiled ] || mkdir -p ${dir_master_out}/unfiled
-[ -d ${dir_master_in}/2x ] || mkdir -p ${dir_master_in}/2x/
-[ -d ${dir_master_batch_in}/2x ] || mkdir -p ${dir_master_batch_in}/2x/
-[ -d ${dir_emph_in}/2x ] || mkdir -p ${dir_emph_in}/2x/
-[ -d ${dir_emph_out}/2x ] || mkdir -p ${dir_emph_out}/2x/
-[ -d ${dir_emph_blocks}/2x ] || mkdir -p ${dir_emph_blocks}/2x/
-[ -d ${dir_emph_blocks_done}/2x ] || mkdir -p ${dir_emph_blocks_done}/2x/
-[ -d ${dir_std_in}/2x ] || mkdir -p ${dir_std_in}/2x/
-[ -d ${dir_std_out}/2x ] || mkdir -p ${dir_std_out}/2x/
-[ -d ${dir_css_in}/2x ] || mkdir -p ${dir_css_in}/2x/
-[ -d ${dir_css_out}/2x ] || mkdir -p ${dir_css_out}/2x/
-[ -d ${dir_css_lib} ] || echo "CCS Lib was not found, can not run without it"
+[ -d "${dir_master_out}/unfiled" ] || mkdir -p "${dir_master_out}/unfiled"
+[ -d "${dir_master_in}/2x" ] || mkdir -p "${dir_master_in}/2x/"
+[ -d "${dir_master_batch_in}/2x" ] || mkdir -p "${dir_master_batch_in}/2x/"
+[ -d "${dir_emph_in}/2x" ] || mkdir -p "${dir_emph_in}/2x/"
+[ -d "${dir_emph_out}/2x" ] || mkdir -p "${dir_emph_out}/2x/"
+[ -d "${dir_emph_blocks}/2x" ] || mkdir -p "${dir_emph_blocks}/2x/"
+[ -d "${dir_emph_blocks_done}/2x" ] || mkdir -p "${dir_emph_blocks_done}/2x/"
+[ -d "${dir_std_in}/2x" ] || mkdir -p "${dir_std_in}/2x/"
+[ -d "${dir_std_out}/2x" ] || mkdir -p "${dir_std_out}/2x/"
+[ -d "${dir_css_in}/2x" ] || mkdir -p "${dir_css_in}/2x/"
 
 ################################### Runtime ###################################
 
@@ -55,15 +55,16 @@ run_sjob()
 totalitems="$(ls ${dir_master_in}/${1}/  | wc -l)"
 if [ ${totalitems} != 0 ]; then
 	# Make MCSS files
-	run_rename ${1}
+	#run_rename ${1}
 	# Sort Files
 	run_sortl1 ${1}
 	# Init Error count
 	errorcount=1
 	# Init Item Count
 	currentitem=1
+
 	# Is there EMPH tasks?
-	if [ $(ls ${dir_emph_in}/${1}/ | wc -l) != 0 ]; then
+	if [ ${emph_total_inn} != 0 ]; then
 		# Run EMPH Runtime
 		run_task_emph ${1} "${3}" ${totalitems}
 	# There is no files, tick coutner
@@ -71,7 +72,7 @@ if [ ${totalitems} != 0 ]; then
 		errorcount=$((++errorcount))
 	fi
 	# Is there Standard tasks?
-	if [ $(ls ${dir_std_in}/${1}/ | wc -l) != 0 ]; then
+	if [ ${std_total_inn} != 0 ]; then
 		# Run STD Runtime
 		run_task_std ${1} "${3}" ${totalitems}
 	# There are no files, tick counter
@@ -103,8 +104,7 @@ else
 	# If there is no files then error out
 	error_colors
 	dialog --colors --title "\Zb[ ERROR: Need Input ]\Zn" --infobox "No Data is in folder for the job\n\
-Please put your data in the folder and run again.\n\n\
-Folder: ${dir_master_in}" 6 53
+Please put your data in the folder and run again.\n\nFolder: ${dir_master_in}" 6 53
 	reset_colors
 	sleep 2
 fi
@@ -117,12 +117,12 @@ run_move_unfiled
 run_clean_temp
 # Change contex to master batch dir
 cd "${dir_master_batch_in}/${1}"
-totalprojects="$(ls ${dir_master_batch_in}/${1}/  | wc -l)"
+totalprojects="$(ls "${dir_master_batch_in}/${1}/"  | wc -l)"
 currentproject=1
 dialog --colors --title "\Zb[ Mugino Data Inspector ]\Zn" --infobox "Preparing Projects...\n\
 \ZbProjects:\Zn ${totalprojects}" 4 46
 sleep 2
-if [ $(ls ${dir_master_batch_in}/${1}/  | wc -l) != 0 ]; then
+if [ $(ls "${dir_master_batch_in}/${1}/"  | wc -l) != 0 ]; then
 for d in */ ; do
   {
   if [ $(ls "${d}" | wc -l) != 0 ]; then
@@ -137,8 +137,9 @@ for d in */ ; do
   run_sjob ${1} 0 "${d}"
   currentproject="$((currentproject + 1))"
   mkdir "${dir_master_out}/$d"
-  mv ${dir_emph_out}/${1}/*.png "${dir_master_out}/$d"
-  mv ${dir_std_out}/${1}/*.png "${dir_master_out}/$d"
+  cd "${dir_master_out}/$d"
+  mv ${dir_emph_out}/${1}/*.* ./
+  mv ${dir_std_out}/${1}/*.* ./
   cd "${dir_master_batch_in}/${1}"
   fi
   }
@@ -157,7 +158,7 @@ fi
 run_task_std() 
 {
 dialog --title "Data Manager" --infobox "Preparing Data..." 3 30
-cd ${dir_std_in}/${1}
+cd "${dir_std_in}/${1}"
 # get number of files
 n=$(ls * | wc -l)
 # Progress Display that has the runtime object in it
@@ -181,18 +182,18 @@ fi
 # pipe display
 echo "XXX"
 echo "Project: $porject_name"
-echo "File: $file ( ${currentitem}/${3} )"
+echo "File: $file ( ${currentitem} / ${3} )"
 echo " "
 echo " ---- File Info ----"
-echo "Current: "$(identify -format "%w x %h (%m " ${dir_std_in}/${1}/${file})$(du -sh ${dir_std_in}/${1}/${file} | cut -c -4 | sed -e 's/^[ \t]*//')") -> MCSS Runtime"
-echo "Last: "$(makedisp ${prev} ${1} ${dir_std_in} ${dir_std_out})
+echo "Current: "$(identify -format "%w x %h (%m " "${dir_std_in}/${1}/${file}")$(du -sh "${dir_std_in}/${1}/${file}" | cut -c -4 | sed -e 's/^[ \t]*//')") -> Waifu2x (${1})"
+echo "Last: "$(makedisp "${prev}" ${1} "${dir_std_in}" "${dir_std_out}")
 echo " -------------------"
 echo " "
 echo "Processor Card: $gpuname @ $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)"
 echo "XXX"
 echo "$pres"
 #do the task
-run_css ${1} ${dir_std_in} ${dir_std_out} ${file}
+run_css ${1} "${dir_std_in}" "${dir_std_out}" "${file}"
 # Update XX#% var
 {
 if [ i = 0 ]
@@ -202,7 +203,7 @@ else
 pres=$(( 100*(++i)/n ))
 fi
 }
-prev=$file
+prev="$file"
 currentitem=$(( currentitem + 1 ))
 done
 dialog --clear
@@ -215,20 +216,20 @@ dialog --clear
 run_task_emph() 
 {
 # Change contex
-cd ${dir_emph_in}/${1}
+cd "${dir_emph_in}/${1}"
 # For each file, run EM, then run CSS, then run PH, then move to output
 for file1 in *.*;
 do
 {
 # Move file to out of contex input file
-mv ${dir_emph_in}/${1}/${file1} ${dir_emph_ocd}
+mv "${dir_emph_in}/${1}/${file1}" "${dir_emph_ocd}"
 # Define Crop Grid, Call function and use output as var
-emph_crop=$(is_crop ${dir_emph_ocd})
+emph_crop=$(is_crop "${dir_emph_ocd}")
 # Run EMo
 dialog --title " [ EMPH Task Control (Task 1/3) ] " --infobox "Processing Data @ ${emph_crop}..." 3 46
 run_emo ${emph_crop} ${1}
 # Change contex
-cd ${dir_emph_blocks}/${1}
+cd "${dir_emph_blocks}/${1}"
 # For each block, run CCS
 n=$(ls emo_block* | wc -l)
 # Progress Display that has the runtime object in it
@@ -252,19 +253,19 @@ fi
 # pipe display
 echo "XXX"
 echo "Project: $porject_name"
-echo "Parent File: $file1 ( ${currentitem}/${3} )"
+echo "Parent File: $file1 ( ${currentitem} / ${3} )"
 echo "Block: $filexx from ${emph_crop} file grid"
 echo " "
 echo " ---- File Info ----"
-echo "Current: "$(identify -format "%w x %h (%m " ${dir_emph_blocks}/${1}/${filexx})$(du -sh ${dir_emph_blocks}/${1}/${filexx} | cut -c -4 | sed -e 's/^[ \t]*//')") -> MCSS Runtime"
-echo "Last: "$(makedisp $prev ${1} ${dir_emph_blocks} ${dir_emph_blocks_done})
+echo "Current: "$(identify -format "%w x %h (%m " "${dir_emph_blocks}/${1}/${filexx}")$(du -sh "${dir_emph_blocks}/${1}/${filexx}" | cut -c -4 | sed -e 's/^[ \t]*//')") -> MCSS Runtime"
+echo "Last: "$(makedisp $prev ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}")
 echo " -------------------"
 echo " "
 echo "Processor Card: $gpuname @ $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)"
 echo "XXX"
 echo "$pres"
 #do the task
-run_css ${1} ${dir_emph_blocks} ${dir_emph_blocks_done} ${filexx}
+run_css ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}" ${filexx}
 # Update XX#% var
 {
 if [ i = 0 ]
@@ -295,33 +296,36 @@ done
 ## Rename Items to UUID (for file name problems)
 # Input(s): Mode
 # Outputs (s): 
-run_rename() 
-{
-dialog --title " [ Mugino Data Control ] " --infobox "Preparing Input..." 3 46
-cd ${dir_master_in}/${1}/
-for files in *
-do
-  mv "$files" ./$(uuid).mcss;
-done
-dialog --title " [ Mugino Data Control ] " --infobox "Preparing Input... DONE" 3 46
-sleep 1
-}
+# run_rename() 
+# {
+# dialog --title " [ Mugino Data Control ] " --infobox "Preparing Input..." 3 46
+# cd "${dir_master_in}/${1}/"
+# for files in *
+# do
+#   mv "$files" ./$(uuid).mcss;
+# done
+# dialog --title " [ Mugino Data Control ] " --infobox "Preparing Input... DONE" 3 46
+# sleep 1
+# }
 
 ## Input Data Sort, find data that needs EMPH, if true sort it for it
 # Input(s):
 # Outputs (s): 
 run_sortl1() 
 {
-cd ${dir_master_in}/${1}/
+# Calc numbers
+emph_total_inn="$(ls "${dir_emph_in}/${1}/" | wc -l)"
+std_total_inn="$(ls "${dir_std_in}/${1}/" | wc -l)"
+cd "${dir_master_in}/${1}/"
 dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
-Items: $(ls ${dir_master_in}/${1}/*.mcss | wc -l)" 4 46
+Items: ${std_total_inn} ( Waiting on EMPH... )" 4 46
 enumm=1
-for file in *.mcss;
+for file in *.*;
 do
 {
 #Get HxW
-hx=$(identify -format "%h" ${dir_master_in}/${1}/${file})
-wx=$(identify -format "%w" ${dir_master_in}/${1}/${file})
+hx=$(identify -format "%h" "${dir_master_in}/${1}/${file}")
+wx=$(identify -format "%w" "${dir_master_in}/${1}/${file}")
 #
 #Find longest edge
 if [ $hx -ge $wx ]
@@ -334,17 +338,17 @@ fi
 if [ $hig -ge 3000 ]
 then
 	#Move to be procced by EMPH
-	mv ${dir_master_in}/${1}/${file} ${dir_emph_in}/${1}
+	mv "${dir_master_in}/${1}/${file}" "${dir_emph_in}/${1}"
 fi
 }
 done
 # Move everything else (under 3000px) to input that will be done later
-for file in *.mcss;
+for file in *.*;
 do
-mv ${dir_master_in}/${1}/${file} ${dir_std_in}/${1} &> /dev/null
+mv "${dir_master_in}/${1}/${file}" "${dir_std_in}/${1}" &> /dev/null
 done
 dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
-Items: $(ls ${dir_std_in}/${1}/*.mcss | wc -l) ( $(ls ${dir_emph_in}/${1}/*.mcss | wc -l) will use EMPH )" 4 46
+Items: ${std_total_inn} ( ${emph_total_inn} will use EMPH )" 4 46
 sleep 1
 }
 
@@ -354,15 +358,14 @@ sleep 1
 run_clean_temp() 
 {
 dialog --title " [ Data Manager ] " --infobox "Cleaning up..." 3 30
-rm ${dir_emph_in}/* &> /dev/null
-rm ${dir_emph_out}/* &> /dev/null
-rm ${dir_emph_blocks}/* &> /dev/null
-rm ${dir_emph_blocks_done}/* &> /dev/null
-rm ${dir_emph_ocd} &> /dev/null
-rm ${dir_std_in}/* &> /dev/null
-rm ${dir_std_out}/* &> /dev/null
-rm ${dir_css_in}/* &> /dev/null
-rm ${dir_css_out}/* &> /dev/null
+rm "${dir_emph_in}/*" &> /dev/null
+rm "${dir_emph_out}/*" &> /dev/null
+rm "${dir_emph_blocks}/*" &> /dev/null
+rm "${dir_emph_blocks_done}/*" &> /dev/null
+rm "${dir_emph_ocd}" &> /dev/null
+rm "${dir_std_in}/*" &> /dev/null
+rm "${dir_std_out}/*" &> /dev/null
+rm "${dir_css_in}/*" &> /dev/null
 dialog --title " [ Data Manager ] " --infobox "Files are removed" 3 30
 sleep 1
 }
@@ -370,8 +373,8 @@ sleep 1
 run_move_unfiled()
 {
 dialog --title " [ Data Manager ] " --infobox "Moving unfiled images..." 3 30
-if [ $(ls ${dir_master_out}/*.png | wc -l) != 0 ]; then
-    mv ${dir_master_out}/*.png ${dir_master_out}/unfiled
+if [ $(ls "${dir_master_out}/*.*" | wc -l) != 0 ]; then
+    mv "${dir_master_out}/*.png" "${dir_master_out}/unfiled"
     dialog --title " [ Data Manager ] " --infobox "Moved to /unfiled" 3 30
 else
 dialog --title " [ Data Manager ] " --infobox "Nothing to move" 3 30
@@ -386,8 +389,8 @@ sleep 1
 # Outputs (s): Piped String "Grid Size (#x#)"
 is_crop() {
 #Get File Info
-hx=$(identify -format "%h" ${1})
-wx=$(identify -format "%w" ${1})
+hx=$(identify -format "%h" "${1}")
+wx=$(identify -format "%w" "${1}")
 #Find longest edge
 if [ $hx -ge $wx ]
 then
@@ -462,12 +465,12 @@ fi
 # Outputs (s): Piped text
 makedisp()
 {
-if [ ${1} != "nopipe" ]
+if [ "${1}" != "nopipe" ]
 then
-echo $(identify -format "%w x %h (%m " ${3}/${2}/${1})$(du -sh ${3}/${2}/${1} | cut -c -4 | sed -e 's/^[ \t]*//')") -> "$(identify -format "%w x %h (%m " ${4}/${2}/${1}.png)$(du -sh ${4}/${2}/${1}.png | cut -c -4 | sed -e 's/^[ \t]*//')")"
+echo $(identify -format "%w x %h (%m " "${3}/${2}/${1}")$(du -sh "${3}/${2}/${1}" | cut -c -4 | sed -e 's/^[ \t]*//')") -> "$(identify -format "%w x %h (%m " "${4}/${2}/${1}.png")$(du -sh "${4}/${2}/${1}.png" | cut -c -4 | sed -e 's/^[ \t]*//')")"
 # in "$(tail -1 /opt/mugino-css/css_log.log | sed -e 's/^[ \t]*//')
 fi
-if [ ${1} = "nopipe" ]
+if [ "${1}" = "nopipe" ]
 then
 echo " "
 fi
@@ -488,9 +491,9 @@ fi
 if [ ${cssmode} = 0 ]; then
 	prossmode="scale"
 fi
-cd  /opt/mugino-css/lib/
+cd  /opt/mugino-css/waifu2x/
 # Run Scaler with input from the current mode
-th waifu2x.lua -m ${prossmode} -i  ${2}/${1}/${4} -o  ${3}/${1}/${4}.png &>> $dir_ccs_log/css_log.log
+th waifu2x.lua -m ${prossmode} -i  "${2}/${1}/${4}" -o  "${3}/${1}/${4}.png" &>> $dir_ccs_log/css_log.log
 }
 
 
@@ -502,11 +505,11 @@ th waifu2x.lua -m ${prossmode} -i  ${2}/${1}/${4} -o  ${3}/${1}/${4}.png &>> $di
 # Outputs (s): File data-output (PNG File, No contex)
 run_emo() 
 {
-cd ${dir_emph_blocks}/${2}
+cd "${dir_emph_blocks}/${2}"
 # Cut file by given grid
-convert ${dir_emph_ocd} -crop ${1}@ +repage +adjoin "emo_block_%d"
+convert "${dir_emph_ocd}" -crop ${1}@ +repage +adjoin "emo_block_%d"
 # Remove input file
-rm ${dir_emph_ocd}
+rm "${dir_emph_ocd}"
 }
 
 ## PHoenix: Recompiles the grid for final output
@@ -515,7 +518,7 @@ rm ${dir_emph_ocd}
 # Outputs (s): ${dir_master_out}/emph/data-output (PNG File, No contex)
 run_phoenix() 
 {
-cd ${dir_emph_blocks_done}/${2}
+cd "${dir_emph_blocks_done}/${2}"
 # If there is more then 9, rename them
 if [ ${1} != "3x3" ]
 then
@@ -531,11 +534,11 @@ then
 	mv emo_block_9.png emo_block_09.png
 fi
 # Runtime
-montage -mode concatenate -tile ${1} emo_block_* ${dir_emph_ocd}
-mv ${dir_emph_ocd} ${dir_emph_out}/${2}/${3}.png
+montage -mode concatenate -tile ${1} emo_block_* "${dir_emph_ocd}"
+mv "${dir_emph_ocd}" "${dir_emph_out}/${2}/${3}.png"
 # Remove old blocks from EMo
 rm emo_block_*
-cd ${dir_emph_blocks}/${2}
+cd "${dir_emph_blocks}/${2}"
 rm emo_block_*
 }
 
@@ -705,11 +708,24 @@ menu_disp_info()
 echo "not setup"
 }
 
+
+
 #########################################################################################################
 
 reset_colors
 
-sleep 2
+dialog --title " [ Bootup ] " --infobox "\n\
+    _/      _/                      _/                            _/_/_/    _/_/_/    _/_/_/\n\
+   _/_/  _/_/  _/    _/    _/_/_/      _/_/_/      _/_/        _/        _/        _/       \n\
+  _/  _/  _/  _/    _/  _/    _/  _/  _/    _/  _/    _/      _/          _/_/      _/_/    \n\
+ _/      _/  _/    _/  _/    _/  _/  _/    _/  _/    _/      _/              _/        _/   \n\
+_/      _/    _/_/_/    _/_/_/  _/  _/    _/    _/_/          _/_/_/  _/_/_/    _/_/_/      \n\
+                           _/                                                               \n\
+                      _/_/                                                                  \n\n\
+Mugino CUDA Super Scaler (Powered by: Waifu2x and Torch7)\n\
+Wait for code to load..." 13 96
+
+sleep 3
 
 #### START HERE ####
 
