@@ -62,7 +62,9 @@ if [ ${totalitems} != 0 ]; then
 	errorcount=1
 	# Init Item Count
 	currentitem=1
-
+	# Calc numbers
+	#emph_total_inn="$(ls "${dir_emph_in}/${1}/" | wc -l)"
+	#std_total_inn="$(ls "${dir_std_in}/${1}/" | wc -l)"
 	# Is there EMPH tasks?
 	if [ ${emph_total_inn} != 0 ]; then
 		# Run EMPH Runtime
@@ -314,11 +316,10 @@ done
 run_sortl1() 
 {
 # Calc numbers
-emph_total_inn="$(ls "${dir_emph_in}/${1}/" | wc -l)"
-std_total_inn="$(ls "${dir_std_in}/${1}/" | wc -l)"
+master_total_inn="$(ls "${dir_master_in}/${1}/" | wc -l)"
 cd "${dir_master_in}/${1}/"
 dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
-Items: ${std_total_inn} ( Waiting on EMPH... )" 4 46
+Items: ${master_total_inn} ( Waiting on EMPH... )" 4 46
 enumm=1
 for file in *.*;
 do
@@ -347,6 +348,9 @@ for file in *.*;
 do
 mv "${dir_master_in}/${1}/${file}" "${dir_std_in}/${1}" &> /dev/null
 done
+# Calc numbers
+emph_total_inn="$(ls "${dir_emph_in}/${1}/" | wc -l)"
+std_total_inn="$(ls "${dir_std_in}/${1}/" | wc -l)"
 dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
 Items: ${std_total_inn} ( ${emph_total_inn} will use EMPH )" 4 46
 sleep 1
