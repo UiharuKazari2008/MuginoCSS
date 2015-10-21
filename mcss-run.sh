@@ -5,6 +5,25 @@
 #
 
 #########################################################################################################
+
+## USER: Edit these for your system 
+
+# Define Locations
+## Main Input for Single File Job
+export dir_master_in="/home/mugino/Input"
+## Main Output for all jobs
+export dir_master_out="/home/mugino/Output"
+## Main Input for Batch Jobs
+export dir_master_batch_in="/home/mugino/Batch"
+## Log file location
+export dir_ccs_log="/mnt/photostor0"
+## Storage of temp files
+export dir_tmp="/mnt/photostor0"
+## What image size should triger EMPH? If you have more RAM you can make this higher
+## This is the longest edge, in pixels. This must be a number, no text
+var_emph_trigger="3000"
+
+
 ################################### init vars ###################################
 
 # Define Main Back Title and GPU Name
@@ -12,12 +31,6 @@ mastertitle="Mugino CUDA Super Scaler v1.82_20-10-2015"
 gpuname="$(nvidia-smi -q | grep "Product Name " | cut -c 39-)"
 gpucores="$(/cuda/NVIDIA_CUDA-7.5_Samples/1_Utilities/deviceQuery/deviceQuery | grep "CUDA Cores")"
 
-# Define Locations
-export dir_master_in="/home/mugino/Input"
-export dir_master_out="/home/mugino/Output"
-export dir_master_batch_in="/home/mugino/Batch"
-export dir_ccs_log="/mnt/photostor0"
-export dir_tmp="/mnt/photostor0"
 
 
 # Make Temp Dirs
@@ -44,20 +57,23 @@ export dir_css_in="${dir_tmp}/mcss/css"
 [ -d "${dir_std_out}/2x" ] || mkdir -p "${dir_std_out}/2x/"
 [ -d "${dir_css_in}/2x" ] || mkdir -p "${dir_css_in}/2x/"
 
+# Misc Var Init
+totalitems=0
+
 ################################### Runtime ###################################
 
 ## Single Job Interface, Sort, Check, Run, Check, Run, Move (4x itter 1 skip)
 # Input(s): Mode (2x, 4x, 6x, 8x); Finish (Move to M.Complete? 1 or 0); Project Name (No Project name = "nop")
 # Outputs (s):
-run_sjob()
+Runtime_Core_Job_Single()
 {
 # Is there files in the input?
 totalitems="$(ls ${dir_master_in}/${1}/  | wc -l)"
 if [ ${totalitems} != 0 ]; then
 	# Make MCSS files
-	#run_rename ${1}
+	#DataMgr_Rename ${1}
 	# Sort Files
-	run_sortl1 ${1}
+	DataMgr_Sort_MIn ${1}
 	# Init Error count
 	errorcount=1
 	# Init Item Count
@@ -68,7 +84,7 @@ if [ ${totalitems} != 0 ]; then
 	# Is there EMPH tasks?
 	if [ ${emph_total_inn} != 0 ]; then
 		# Run EMPH Runtime
-		run_task_emph ${1} "${3}" ${totalitems}
+		Runtime_Core_EMPHTaskMan ${1} "${3}"
 	# There is no files, tick coutner
 	else
 		errorcount=$((++errorcount))
@@ -76,7 +92,7 @@ if [ ${totalitems} != 0 ]; then
 	# Is there Standard tasks?
 	if [ ${std_total_inn} != 0 ]; then
 		# Run STD Runtime
-		run_task_std ${1} "${3}" ${totalitems}
+		Runtime_Core_STD ${1} "${3}"
 	# There are no files, tick counter
 	else
 		errorcount=$((++errorcount))
@@ -84,12 +100,12 @@ if [ ${totalitems} != 0 ]; then
 	# If both tasks fail then complain that there are no files to proccess, maybe the sorted content failed to be accessed?
 	if [ ${errorcount} = 3 ]; then
 		error_colors
-		dialog --colors --title "\Zb[ ERROR in Data Manager ]\Zn" --infobox "No Data was found in any of runtime inputs\n\
+		dialog --colors --title "\Zb[ Data Manager - IO_FAULT ]\Zn" --infobox "No Data was found in any of runtime inputs\n\
 This could mean that:\n\
 1. You did not define the dir_<runtime>_in or out var \n\
 2. The defined values are not readable or denied access\n\
 Please correct this issue and restart MCSS \n\n\
-Runtime - Standard: ${dir_std_in} \n\
+Runtime - STD: ${dir_std_in} \n\
 Runtime - EMPH: ${dir_emph_in}" 10 60
 		reset_colors
 		sleep 4
@@ -105,18 +121,18 @@ Runtime - EMPH: ${dir_emph_in}" 10 60
 else
 	# If there is no files then error out
 	error_colors
-	dialog --colors --title "\Zb[ ERROR: Need Input ]\Zn" --infobox "No Data is in folder for the job\n\
-Please put your data in the folder and run again.\n\nFolder: ${dir_master_in}" 6 53
+	dialog --colors --title "\Zb[ No Input ]\Zn" --infobox "No images are in the input folder for this job\n\
+Please put your data in the folder and run again.\n\nFolder: ${dir_master_in}" 6 54
 	reset_colors
 	sleep 2
 fi
 }
 
-run_bjob()
+Runtime_Core_Job_Multi()
 {
 # Clean up output and temp
-run_move_unfiled
-run_clean_temp
+DataMgr_Move_Unfiled
+DataMgr_Clean_Temp
 # Change contex to master batch dir
 cd "${dir_master_batch_in}/${1}"
 totalprojects="$(ls "${dir_master_batch_in}/${1}/"  | wc -l)"
@@ -136,7 +152,7 @@ for d in */ ; do
   }
   #cd ..
   #rmdir "${d}"
-  run_sjob ${1} 0 "${d}"
+  Runtime_Core_Job_Single ${1} 0 "${d}"
   currentproject="$((currentproject + 1))"
   mkdir "${dir_master_out}/$d"
   cd "${dir_master_out}/$d"
@@ -147,9 +163,10 @@ for d in */ ; do
   }
 done
 else
-dialog --colors --title " [ DATA ERROR ] " --infobox "No Data is in folder for the job\n\
-Please put your data in the folder and run again.\n\
-Folder: ${dir_master_in}" 5 53
+	error_colors
+	dialog --colors --title "\Zb [ No Input ] \Zn" --infobox "No projects are in the input folder for this job\n\
+Please put your data in the folder and run again.\n\nFolder: ${dir_master_batch_in}" 6 54
+	reset_colors
 sleep 2
 fi
 }
@@ -157,14 +174,15 @@ fi
 ## Run Standrard Runtime
 # Input(s): 
 # Outputs (s): 
-run_task_std() 
+Runtime_Core_STD() 
 {
-dialog --title "Data Manager" --infobox "Preparing Data..." 3 30
+dialog  --colors --title "\Zb [ Data Manager ] \Zn" --infobox "Preparing Data..." 3 30
 cd "${dir_std_in}/${1}"
 # get number of files
 n=$(ls * | wc -l)
 # Progress Display that has the runtime object in it
-dialog --backtitle "$mastertitle" --title " [ Mugino Meltdowner ] " --gauge "Waiting for init pipeline... \n\
+mugino_colors
+dialog  --colors --backtitle "$mastertitle" --title "\Zb [ Mugino Meltdowner ] \Zn" --gauge "Waiting for init pipeline...  \n\
 Processor Card Temp: $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)" 15 75 < <(
 # set 0
 i=0
@@ -184,18 +202,18 @@ fi
 # pipe display
 echo "XXX"
 echo "Project: $porject_name"
-echo "File: $file ( ${currentitem} / ${3} )"
+echo "File: $file ( ${currentitem} / ${totalitems} )"
 echo " "
 echo " ---- File Info ----"
 echo "Current: "$(identify -format "%w x %h (%m " "${dir_std_in}/${1}/${file}")$(du -sh "${dir_std_in}/${1}/${file}" | cut -c -4 | sed -e 's/^[ \t]*//')") -> Waifu2x (${1})"
-echo "Last: "$(makedisp "${prev}" ${1} "${dir_std_in}" "${dir_std_out}")
+echo "Last: "$(Disp_MM_LastFile "${prev}" ${1} "${dir_std_in}" "${dir_std_out}")
 echo " -------------------"
 echo " "
 echo "Processor Card: $gpuname @ $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)"
 echo "XXX"
 echo "$pres"
 #do the task
-run_css ${1} "${dir_std_in}" "${dir_std_out}" "${file}"
+Runtime_Core_WaifuCSS ${1} "${dir_std_in}" "${dir_std_out}" "${file}"
 # Update XX#% var
 {
 if [ i = 0 ]
@@ -210,12 +228,13 @@ currentitem=$(( currentitem + 1 ))
 done
 dialog --clear
 )
+reset_colors
 }
 
 ## Run EMPH Runtime
 # Input(s): Mode (Piped String)
 # Outputs (s): File data-output (PNG File, No contex)
-run_task_emph() 
+Runtime_Core_EMPHTaskMan() 
 {
 # Change contex
 cd "${dir_emph_in}/${1}"
@@ -226,16 +245,19 @@ do
 # Move file to out of contex input file
 mv "${dir_emph_in}/${1}/${file1}" "${dir_emph_ocd}"
 # Define Crop Grid, Call function and use output as var
-emph_crop=$(is_crop "${dir_emph_ocd}")
+emph_crop=$(Get_Data_CropLvl "${dir_emph_ocd}")
 # Run EMo
-dialog --title " [ EMPH Task Control (Task 1/3) ] " --infobox "Processing Data @ ${emph_crop}..." 3 46
-run_emo ${emph_crop} ${1}
+emph_colors
+dialog  --colors --title " [ EMPH Task Control (Task 1/3) ] " --infobox "Processing Data @ ${emph_crop}..." 3 46
+Runtime_EMPH_Emo ${emph_crop} ${1}
+reset_colors
 # Change contex
 cd "${dir_emph_blocks}/${1}"
 # For each block, run CCS
 n=$(ls emo_block* | wc -l)
 # Progress Display that has the runtime object in it
-dialog --backtitle "$mastertitle" --title " [ Mugino Meltdowner (from EMPH Task) ] " --gauge "Waiting for init pipeline... \n\
+mugino_colors
+dialog  --colors --backtitle "$mastertitle" --title " [ Mugino Meltdowner (from EMPH Task) ] " --gauge "Waiting for init pipeline... \n\
 Processor Card Temp: $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)" 16 75 < <(
 # set 0
 i=0
@@ -255,20 +277,20 @@ fi
 # pipe display
 echo "XXX"
 echo "Project: $porject_name"
-echo "Parent File: $file1 ( ${currentitem} / ${3} )"
+echo "Parent File: $file1 ( ${currentitem} / ${totalitems} )"
 echo "Block: $filexx from ${emph_crop} file grid"
 echo " "
 echo " ---- File Info ----"
 echo "Current: "$(identify -format "%w x %h (%m " "${dir_emph_blocks}/${1}/${filexx}")$(du -sh "${dir_emph_blocks}/${1}/${filexx}" | cut -c -4 | sed -e 's/^[ \t]*//')") -> MCSS Runtime"
-echo "Last: "$(makedisp $prev ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}")
+echo "Last: "$(Disp_MM_LastFile $prev ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}")
 echo " -------------------"
 echo " "
 echo "Processor Card: $gpuname @ $( nvidia-smi -q | grep "GPU Current Temp" | cut -c 39-)"
 echo "XXX"
 echo "$pres"
 #do the task
-run_css ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}" ${filexx}
-# Update XX#% var
+Runtime_Core_WaifuCSS ${1} "${dir_emph_blocks}" "${dir_emph_blocks_done}" ${filexx}
+# Calc XX#% var
 {
 if [ i = 0 ]
 then
@@ -284,9 +306,11 @@ dialog --clear
 )
 reset_colors
 # Run PHoenix
-dialog --title " [ EMPH Task Control (Task 3/3) ] " --infobox "Processing Data..." 3 46
-run_phoenix $emph_crop ${1} $file1
-dialog --title " [ EMPH Task Control (Task 3/3) ] " --infobox "Processing Data... COMPLETE!" 3 46
+emph_colors
+dialog  --colors --title " [ EMPH Task Control (Task 3/3) ] " --infobox "Processing Data..." 3 46
+Runtime_EMPH_Phoenix $emph_crop ${1} $file1
+dialog  --colors --title " [ EMPH Task Control (Task 3/3) ] " --infobox "Processing Data... COMPLETE!" 3 46
+reset_colors
 sleep 2
 }
 currentitem=$(( currentitem + 1 ))
@@ -298,7 +322,7 @@ done
 ## Rename Items to UUID (for file name problems)
 # Input(s): Mode
 # Outputs (s): 
-# run_rename() 
+# DataMgr_Rename() 
 # {
 # dialog --title " [ Mugino Data Control ] " --infobox "Preparing Input..." 3 46
 # cd "${dir_master_in}/${1}/"
@@ -313,12 +337,12 @@ done
 ## Input Data Sort, find data that needs EMPH, if true sort it for it
 # Input(s):
 # Outputs (s): 
-run_sortl1() 
+DataMgr_Sort_MIn() 
 {
 # Calc numbers
 master_total_inn="$(ls "${dir_master_in}/${1}/" | wc -l)"
 cd "${dir_master_in}/${1}/"
-dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
+dialog  --colors --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
 Items: ${master_total_inn} ( Waiting on EMPH... )" 4 46
 enumm=1
 for file in *.*;
@@ -327,7 +351,6 @@ do
 #Get HxW
 hx=$(identify -format "%h" "${dir_master_in}/${1}/${file}")
 wx=$(identify -format "%w" "${dir_master_in}/${1}/${file}")
-#
 #Find longest edge
 if [ $hx -ge $wx ]
 then
@@ -336,7 +359,7 @@ else
 hig=$wx
 fi
 # If file is over 3000px (longest edge) then move it to EMPH input
-if [ $hig -ge 3000 ]
+if [ $hig -ge $var_emph_trigger ]
 then
 	#Move to be procced by EMPH
 	mv "${dir_master_in}/${1}/${file}" "${dir_emph_in}/${1}"
@@ -351,7 +374,7 @@ done
 # Calc numbers
 emph_total_inn="$(ls "${dir_emph_in}/${1}/" | wc -l)"
 std_total_inn="$(ls "${dir_std_in}/${1}/" | wc -l)"
-dialog --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
+dialog  --colors --title " [ Mugino Data Inspector ] " --infobox "Preparing Data...\n\
 Items: ${std_total_inn} ( ${emph_total_inn} will use EMPH )" 4 46
 sleep 1
 }
@@ -359,29 +382,49 @@ sleep 1
 ## Clean up temp directorys
 # Input(s): None
 # Outputs (s): None
-run_clean_temp() 
+DataMgr_Clean_Temp() 
 {
-dialog --title " [ Data Manager ] " --infobox "Cleaning up..." 3 30
-rm "${dir_emph_in}/*" &> /dev/null
-rm "${dir_emph_out}/*" &> /dev/null
-rm "${dir_emph_blocks}/*" &> /dev/null
-rm "${dir_emph_blocks_done}/*" &> /dev/null
-rm "${dir_emph_ocd}" &> /dev/null
-rm "${dir_std_in}/*" &> /dev/null
-rm "${dir_std_out}/*" &> /dev/null
-rm "${dir_css_in}/*" &> /dev/null
-dialog --title " [ Data Manager ] " --infobox "Files are removed" 3 30
+dialog  --colors --title " [ Data Manager ] " --infobox "Cleaning up..." 3 30
+rm -R "${dir_emph_in}/*"
+rm -R "${dir_emph_out}/*"
+rm -R "${dir_emph_blocks}/*"
+rm -R "${dir_emph_blocks_done}/*"
+rm -R "${dir_emph_ocd}"
+rm -R "${dir_std_in}/*"
+rm -R "${dir_std_out}/*"
+rm -R "${dir_css_in}/*"
+dialog  --colors --title " [ Data Manager ] " --infobox "Files are removed" 3 30
 sleep 1
 }
 
-run_move_unfiled()
+## Delete All Files
+DataMgr_Clean_All() 
 {
-dialog --title " [ Data Manager ] " --infobox "Moving unfiled images..." 3 30
+dialog  --colors --title " [ Data Manager ] " --infobox "Cleaning up..." 3 30
+rm -R "${dir_emph_in}/*"
+rm -R "${dir_emph_out}/*"
+rm -R "${dir_emph_blocks}/*"
+rm -R "${dir_emph_blocks_done}/*"
+rm -R "${dir_emph_ocd}"
+rm -R "${dir_std_in}/*"
+rm -R "${dir_std_out}/*"
+rm -R "${dir_css_in}/*"
+rm -R "${dir_master_batch_in}/*"
+rm -R "${dir_master_in}/*"
+rm -R "${dir_master_out}/*"
+dialog  --colors --title " [ Data Manager ] " --infobox "Files are removed" 3 30
+sleep 1
+}
+
+# Move unfiled files to the unfiled folder
+DataMgr_Move_Unfiled()
+{
+dialog  --colors --title " [ Data Manager ] " --infobox "Moving unfiled images..." 3 30
 if [ $(ls "${dir_master_out}/*.*" | wc -l) != 0 ]; then
     mv "${dir_master_out}/*.png" "${dir_master_out}/unfiled"
     dialog --title " [ Data Manager ] " --infobox "Moved to /unfiled" 3 30
 else
-dialog --title " [ Data Manager ] " --infobox "Nothing to move" 3 30
+dialog  --colors --title " [ Data Manager ] " --infobox "Nothing to move" 3 30
 fi
 sleep 1
 }
@@ -391,7 +434,7 @@ sleep 1
 ## EMPH Grid calculator
 # Input(s): File (Piped String (UUID.mcss))
 # Outputs (s): Piped String "Grid Size (#x#)"
-is_crop() {
+Get_Data_CropLvl() {
 #Get File Info
 hx=$(identify -format "%h" "${1}")
 wx=$(identify -format "%w" "${1}")
@@ -467,7 +510,7 @@ fi
 ## Creates previous file data infomation
 # Input(s): Mode (Piped String), Function , Previous File (Piped String (UUID.mcss))
 # Outputs (s): Piped text
-makedisp()
+Disp_MM_LastFile()
 {
 if [ "${1}" != "nopipe" ]
 then
@@ -486,7 +529,7 @@ fi
 ## MCSS Runtime (Scale Mode)
 # Input(s): File (Piped String (MCSS ? Image, Out of contex), Mode (Piped String)
 # Outputs (s): File (Piped String (MCSS PNG Image, No contex)
-run_css() 
+Runtime_Core_WaifuCSS() 
 {
 # Go to library
 if [ ${cssmode} = 1 ]; then
@@ -507,7 +550,7 @@ th waifu2x.lua -m ${prossmode} -i  "${2}/${1}/${4}" -o  "${3}/${1}/${4}.png" &>>
 ## Get the pun.....emo....cut.....
 # Input(s): Crop (Piped String (#x#)), ${dir_master_out}/emph/data-input (PNG File, Out of contex)
 # Outputs (s): File data-output (PNG File, No contex)
-run_emo() 
+Runtime_EMPH_Emo() 
 {
 cd "${dir_emph_blocks}/${2}"
 # Cut file by given grid
@@ -520,7 +563,7 @@ rm "${dir_emph_ocd}"
 ## Get the pun.....phoenix....recontructs.....
 # Input(s): None
 # Outputs (s): ${dir_master_out}/emph/data-output (PNG File, No contex)
-run_phoenix() 
+Runtime_EMPH_Phoenix() 
 {
 cd "${dir_emph_blocks_done}/${2}"
 # If there is more then 9, rename them
@@ -605,12 +648,12 @@ sed -i -e 's/screen_color = (WHITE,DEFAULT,OFF)/screen_color = (WHITE,RED,OFF)/g
 
 emph_colors()
 {
-sed -i -e 's/screen_color = (WHITE,MAGENTA,OFF)/screen_color = (WHITE,DEFAULT,OFF)/g' ~/.dialogrc
+sed -i -e 's/screen_color = (WHITE,DEFAULT,OFF)/screen_color = (WHITE,MAGENTA,OFF)/g' ~/.dialogrc
 }
 
 mugino_colors()
 {
-sed -i -e 's/screen_color = (WHITE,GREEN,OFF)/screen_color = (WHITE,DEFAULT,OFF)/g' ~/.dialogrc
+sed -i -e 's/screen_color = (WHITE,DEFAULT,OFF)/screen_color = (WHITE,GREEN,OFF)/g' ~/.dialogrc
 }
 
 menu_select_sjob()
@@ -619,7 +662,7 @@ running=1
 vvxd=/tmp/menu.sh.$$
 while [ $running -eq 1 ]
 do
-dialog --clear  --backtitle "$mastertitle" \
+dialog  --colors --clear  --backtitle "$mastertitle" \
 --colors --title "\Zb[ Multi File Job ]\Zn" \
 --menu "Select Mode:" 14 40 8 \
 2x "2x Scale" \
@@ -634,11 +677,11 @@ menuitem=$(<"${vvxd}")
 
 # make decsion
 case $menuitem in
-	2x) cssmode=0; run_sjob 2x 1 nop;;
-	2x_nr) cssmode=1; run_sjob 2x 1 nop;;
-	4x) run_sjob 4x 0 nop;;
-	4x_nr) run_sjob 4x 0 nop;;
-	nr) run_sjob nr 1 nop;;
+	2x) cssmode=0; Runtime_Core_Job_Single 2x 1 nop;;
+	2x_nr) cssmode=1; Runtime_Core_Job_Single 2x 1 nop;;
+	4x) Runtime_Core_Job_Single 4x 0 nop;;
+	4x_nr) Runtime_Core_Job_Single 4x 0 nop;;
+	nr) Runtime_Core_Job_Single nr 1 nop;;
 	Back) running=0;;
 esac
 
@@ -652,7 +695,7 @@ vvpd=/tmp/menu.sh.$$
 
 while [ $running -eq 1 ]
 do
-dialog --clear  --backtitle "$mastertitle" \
+dialog  --colors --clear  --backtitle "$mastertitle" \
 --colors --title "\Zb[ Multi Folder Job ]\Zn" \
 --menu "Select Mode:" 14 40 8 \
 2x "2x Scale" \
@@ -666,11 +709,11 @@ menuitem=$(<"${vvpd}")
 
 # make decsion
 case $menuitem in
-	2x) cssmode=0; run_bjob 2x 1 0;;
-	2x_nr) cssmode=1; run_bjob 2x 1 1;;
-	4x) run_bjob 4x;;
-	4x_nr) run_bjob 4x_nr;;
-	nr) run_bjob nr;;
+	2x) cssmode=0; Runtime_Core_Job_Multi 2x 1 0;;
+	2x_nr) cssmode=1; Runtime_Core_Job_Multi 2x 1 1;;
+	4x) Runtime_Core_Job_Multi 4x;;
+	4x_nr) Runtime_Core_Job_Multi 4x_nr;;
+	nr) Runtime_Core_Job_Multi nr;;
 	Back) running=0;;
 esac
 
@@ -685,7 +728,7 @@ echo "not setup"
 menu_enter_url()
 {
 
-dialog --title "Web Retrival" \
+dialog  --colors --title "Web Retrival" \
 --backtitle "$mastertitle" \
 --inputbox "URL: " 8 75 2>$OUTPUT
  
@@ -694,7 +737,7 @@ name=$(<$OUTPUT)
 
 case $respose in
   0)   	
-	dialog --title "Web Retrival" \
+	dialog  --colors --title "Web Retrival" \
 	--yesno "Is this your file?\n$(wget ${name})" 10 40
 	
   	;;
@@ -718,7 +761,7 @@ echo "not setup"
 
 reset_colors
 
-dialog --title " [ Bootup ] " --infobox "\n\
+dialog  --colors --title " [ Bootup ] " --infobox "\n\
     _/      _/                      _/                            _/_/_/    _/_/_/    _/_/_/\n\
    _/_/  _/_/  _/    _/    _/_/_/      _/_/_/      _/_/        _/        _/        _/       \n\
   _/  _/  _/  _/    _/  _/    _/  _/  _/    _/  _/    _/      _/          _/_/      _/_/    \n\
@@ -739,7 +782,7 @@ while true
 do
 
 ### display main menu ###
-dialog --clear  --backtitle "$mastertitle" \
+dialog  --colors --clear  --backtitle "$mastertitle" \
 --colors --title "\Zb[ MCSS Control Panel ]\Zn" \
 --menu "\ZbSystem is now ready\Zn \n\
 Processor Card: $gpuname \n\
@@ -767,8 +810,8 @@ case $menuitem in
 	Single_URL) menu_enter_url;;
 	Info) menu_disp_info;;
 	Exit) clear ; break;;
-	Delete_Temp) run_clean_temp;;
-	Delete_Data) run_clean_all;;
+	Delete_Temp) DataMgr_Clean_Temp;;
+	Delete_Data) DataMgr_Clean_All;;
 	1) clear ; break;;
 	255)  clear ; break;;
 esac
