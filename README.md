@@ -38,7 +38,7 @@ Run it with no input to see usage or read below
 5. Profit 
 
 ### Injects (WIP, does not work ATM)
-Injects allow you to "inject" a file or folder into the current job and give it ASAP priority
+#### Injects allow you to "inject" a file or folder into the current job and give it ASAP priority
 1. Put images/folders into inject folder
 2. Wait till current item is done, then injects will be ran
 3. Tail the log at /opt/mugino-css/mcss.log
