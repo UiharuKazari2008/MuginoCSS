@@ -6,7 +6,7 @@ Mugino CSS is a batch/project image scaler that uses Waifu2x, MCSS comes with EM
 1. Linux ( I am running Ubuntu Server 14.04.3 LTS) (Tested to work with both Desktop and Server)
 2. NVidia GPU with CUDA (I have used a GTX 650 and GTX 760 Ti) (Tested to work with both CUDA 7.0 and CUDA 7.5)
   1. Install CUDA with samples, and make the first utility called deviceq.. (cant spell right now)
-3. Define your CUDA bin directory in your PATH (Example: "/usr/local/cuda-7.5/bin/)
+3. Define your CUDA bin directory in your PATH (Example: /usr/local/cuda-7.5/bin/)
 4. Install Waifu2x and confimed that it works (Here: https://github.com/nagadomi/waifu2x)
   1. Use (https://github.com/nagadomi/waifu2x/commit/b27ba28e1727454690d1ac12edbce8bb399015cc) as your install guide as he has not updated his guide and you will fail without this
 5. apt-get insall imagemagick
@@ -25,7 +25,48 @@ Mugino CSS is a batch/project image scaler that uses Waifu2x, MCSS comes with EM
   4. Change what is the max size a image can be before EMPH is triggered, a.k.a. how large before it hits your systems RAM limit
 
 ## Usage
-Run it with no options or -h option to see how to set the options
+MCSS-RUN -x <S> -m <S> [-n] [-i <S>] [-o <S>] [-k or -K] [-O <#>] [-c]
+
+	-x Exec Mode (String)
+		run - Runs a new job
+		prep - Generates the job file only (For running later or transport)
+		p-run - Runs the prepared job file, must be in CSS directory
+		inject - Inject a project(s) into the current job (will run after current ITEM)
+		append - Append a project(s) after the current job (will run after current JOB)
+		recover - Recover orginal image from output image, MUST HAVE USED KIFR!
+
+	-m Scaler Mode (String)
+		2 - 2x Scale Mode
+		4 - 4x Scale Mode
+		0 - No scaling, for NR only mode
+
+	-n Noise Reduction
+
+	-i/-o Input/Output
+		Overrides the default dirs
+		DO NOT PUT A '/' ON THE END 
+
+	-k KIFR (Keep Input for Recovery)
+		This uses steganography to place the original file in the output for recovery
+		Uses the Input image file as a payload
+		This was added for as a P.O.C. for a class at university
+
+		WARNING!!
+		 1. DO NOT re-save the image with any editor, the embedded image WILL be LOST
+		 2. This WILL increase the output file size
+		 3. This will take some CPU power to pull off and will extend the time
+		 4. This does not play well with transparent images, transparently will become black
+		    in areas that it has written to. So some images will be half transparent half black bg
+
+	-O Omit (Number), Omit any file that is larger then X
+
+	-c Move input items
+		When dealing with a non-static input, this will copy the input for safty
+
+	-y Will skip confirm and run
+
+
+### Examples
 
 Run 2x with default I/O
 ```
