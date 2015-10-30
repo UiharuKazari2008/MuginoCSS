@@ -186,7 +186,7 @@ Runtime_Core_WaifuCSS()
 	run=1
 	# Item Loop
 	{
-		while [ $(wc -l < ${dir_ccs}/taskmgr.projob) != 0 ]; do
+		while [ $([[ -f ${dir_ccs}/taskmgr.projob ]] && wc -l < ${dir_ccs}/taskmgr.projob || echo 0) != 0 ]; do
 			#Get Line for item to do
 			item="$(head -1 ${dir_ccs}/taskmgr.projob)"
 			#Get I/O and Filename(and with no ext)
@@ -290,7 +290,7 @@ Runtime_Core_WaifuCSS()
 			if [ $item_embed = 1 ]; then
 				echo "[KIFR] >>> Embedding Input File..." >> ${dir_ccs}/mcss.log
 				stepic --encode --image-in="${item_out}${item_filename_out}(MCSS-${settingstext}).png" --data-in="${item_in}${item_filename}" --out="${item_out}${item_filename_out}(MCSS-${settingstext}+E).png" &>> ${dir_ccs}/mcss.log
-				rm "${item_out}${item_filename_out}(MCSS-${settingstext}).png"
+				[[ -f "${item_out}${item_filename_out}(MCSS-${settingstext}+E).png" ]] && rm "${item_out}${item_filename_out}(MCSS-${settingstext}).png"
 			fi
 			echo $item &>> ${dir_ccs}/taskmgr_bk.projob
 			sed -i '1d' ${dir_ccs}/taskmgr.projob
@@ -323,8 +323,8 @@ usage()
 	echo "		run - Runs a new job"
 	echo "		prep - Generates the job file only (For running later or transport)"
 	echo "		p-run - Runs the prepared job file, must be in CSS directory"
-	echo "		inject - Inject a project(s) into the current job (will run after current item)"
-	echo "		append - Append a project(s) after the current job (will run after current job)"
+	echo "		inject - Inject a project(s) into the current job (will run after current ITEM)"
+	echo "		append - Append a project(s) after the current job (will run after current JOB)"
 	echo "		recover - Recover orginal image from output image, MUST HAVE USED KIFR!"
 	echo ""
 	echo "	-m Scaler Mode (String)"
@@ -336,6 +336,7 @@ usage()
 	echo ""
 	echo "	-i/-o Input/Output"
 	echo "		Overrides the default dirs"
+	echo "		DO NOT PUT A '/' ON THE END "
 	echo ""
 	echo "	-k KIFR (Keep Input for Recovery)"
 	echo "		This uses steganography to place the original file in the output for recovery"
@@ -353,6 +354,8 @@ usage()
 	echo ""
 	echo "	-c Move input items"
 	echo "		When dealing with a non-static input, this will copy the input for safty"
+	echo ""
+	echo "	-y Will skip confirm and run"
 }
 
 ## EMPH Grid calculator
@@ -431,8 +434,9 @@ scale=2
 stegno=0
 max_input=0
 copy_input=0
+dont_confirm=0
 # Define Main Back Title and GPU Name
-mastertitle="Mugino CUDA Super Scaler v2.67_29-10-2015"
+mastertitle="Mugino CSS v2.71_29-10-2015"
 gpuname="$(nvidia-smi -q | grep "Product Name " | cut -c 39-)"
 gpucores="$(/cuda/NVIDIA_CUDA-7.5_Samples/1_Utilities/deviceQuery/deviceQuery | grep "CUDA Cores")"
 
@@ -446,13 +450,14 @@ echo ""
 echo "$mastertitle"
 echo "------------------------------------------------"
 
-while getopts ":x:mn:i:o:kO:hc" opt; do
+while getopts ":x:m:ni:o:kO:hcy" opt; do
   case $opt in
     x)
 	  # Set Execution Mode
 	  run_mode=$OPTARG
       ;;
 	m)
+	  # Set Scale Mode
       scale=$OPTARG
       ;;
 	n)
@@ -460,6 +465,7 @@ while getopts ":x:mn:i:o:kO:hc" opt; do
 	  noise_reduction=1
 	  ;;
 	i)
+	  # Parse Input and set
 	  if [ $run_mode = "inject" ]; then
 		dir_master_inject="$OPTARG"
 	  else
@@ -467,23 +473,29 @@ while getopts ":x:mn:i:o:kO:hc" opt; do
 	  fi
       ;;
 	o)
-      dir_master_out="$OPTARG" >&2
-      ;;
+      # Set Output
+	  dir_master_out="$OPTARG" >&2
+	  ;;
 	k)
-      stegno=1
-      ;;
-	K)
-      stegno=2
+      # Enable KIFR
+	  stegno=1
       ;;
 	O)
-      max_input=$OPTARG
+      # Set max input size in px
+	  max_input=$OPTARG
       ;;
 	c)
-      copy_input=1
+      # Make input static
+	  copy_input=1
 	  echo "[E500] Not Implimented, will be ignored, Abort"
       ;;
+	y)
+      # No Confitm
+	  dont_confirm=1
+      ;;
 	h)
-      usage
+      # Display help
+	  usage
 	  exit 1
       ;;
     \?)
@@ -498,61 +510,66 @@ while getopts ":x:mn:i:o:kO:hc" opt; do
       ;;
   esac
 done
-if [ $run_mode = "run" ]; then
-	echo "Exec Mode: Full Run"
-elif [ $run_mode = "prep" ]; then
-	echo "Exec Mode: Prep Only"
-elif [ $run_mode = "p-run" ]; then
-	echo "Exec Mode: Run from preped data"
-elif [ $run_mode = "inject" ]; then
-	echo "Exec Mode: Injection"
-elif [ $run_mode = "append" ]; then
-	echo "Exec Mode: Append"
-elif [ $run_mode = "recover" ]; then
-	echo "Exec Mode: Recovery"
-else
-	echo "[PEBKAC] No Exec Mode was defined or was not correct, Abort"
-	exit 1
-fi
 
-if [ $scale = 0 ]; then
-	echo "Scale Mode: OFF"
-else
-	echo "Scale Mode: ${scale}x"
+if [ $dont_confirm = 0 ]; then
+	if [ $run_mode = "run" ]; then
+		echo "Exec Mode: Full Run"
+	elif [ $run_mode = "prep" ]; then
+		echo "Exec Mode: Prep Only"
+	elif [ $run_mode = "p-run" ]; then
+		echo "Exec Mode: Run from preped data"
+	elif [ $run_mode = "inject" ]; then
+		echo "Exec Mode: Injection"
+	elif [ $run_mode = "append" ]; then
+		echo "Exec Mode: Append"
+	elif [ $run_mode = "recover" ]; then
+		echo "Exec Mode: Recovery"
+	else
+		echo "[PEBKAC] No Exec Mode was defined or was not correct, Abort"
+		exit 1
+	fi
+
+	if [ $scale = 0 ]; then
+		echo "Scale Mode: OFF"
+	else
+		echo "Scale Mode: ${scale}x"
+	fi
+	if [ $noise_reduction = 1 ]; then
+		echo "Noise Reduction: ON"
+	else
+		echo "Noise Reduction: OFF"
+	fi
+	if [ $run_mode = "inject" ]; then
+		echo "Input: ${dir_master_inject}"
+	else
+		echo "Input: ${dir_master_in}"
+	fi
+	echo "Output: ${dir_master_out}"
+	if [ $max_input = 0 ]; then
+		echo "Max Input: OFF"
+	else
+		echo "Max Input: <= ${max_input}px"
+	fi
+	if [ $stegno = 0 ]; then
+		echo "Input Recovery: OFF"
+	else
+		echo "Input Recovery: ON"
+	fi
+	if [ $copy_input = 0 ]; then
+		echo "Copy Input: OFF"
+	else
+		echo "Copy Input: ON"
+	fi
+	echo "------------------------------------------------"
+	read -p "Are you ready to run this job? (y/n) " cmdrep
+	case $cmdrep in
+		[n]* ) exit 1;;
+		[y]* ) echo "Tail log for status";;
+		* )     exit 1;;
+	esac
+elif [ $dont_confirm = 1 ]; then
+	echo "Tail log for status"
 fi
-if [ $noise_reduction = 1 ]; then
-	echo "Noise Reduction: ON"
-else
-	echo "Noise Reduction: OFF"
-fi
-if [ $run_mode = "inject" ]; then
-	echo "Input: ${dir_master_inject}"
-else
-	echo "Input: ${dir_master_in}"
-fi
-echo "Output: ${dir_master_out}"
-if [ $max_input = 0 ]; then
-	echo "Max Input: DISABLED"
-else
-	echo "Max Input: ${max_input}px"
-fi
-if [ $stegno = 0 ]; then
-	echo "Input Recovery: OFF"
-else
-	echo "Input Recovery: ON"
-fi
-if [ $copy_input = 0 ]; then
-	echo "Copy Input: OFF"
-else
-	echo "Copy Input: ON"
-fi
-echo "------------------------------------------------"
-read -p "Are you ready to run this job? (y/n) " cmdrep
-case $cmdrep in
-	[no]* ) exit 1;;
-	[yes]* ) echo "Tail log for status";;
-	* )     echo "No rep";;
-esac
 
 if [ $run_mode = "run" ]; then
 	#Full Run Mode with Prep Stage
@@ -592,7 +609,7 @@ elif [ $run_mode = "recover" ]; then
 	[ -d "${dir_master_out}/Recovery/" ] || mkdir -p "${dir_master_out}/Recovery/"
 	cd "${dir_master_in}"
 	for inputfile in *.png; do
-		stepic --decode --image-in="${inputfile}" -out="${dir_master_out}/Recovery/RECOVERED-${inputfile}" &>> ${dir_ccs}/mcss.log
+		stepic --decode --image-in="${dir_master_in}/${inputfile}" --out="${dir_master_out}/Recovery/RECOVERED-${inputfile}" &>> ${dir_ccs}/mcss.log
 	done
 else
 	echo "[PEBKAC] No Exec Mode was defined or was not correct, Abort"
