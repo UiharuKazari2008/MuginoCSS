@@ -87,14 +87,17 @@ mcss-run.sh -x recover -i '/home/mugino/files to recover'
 Have fun!
 
 ## Changes
+
 ###10/20/2015
 1. No more UUID file names, now it supports orginal file names. Even with bad things liek spaces and stuff like that.
 2. Updated to reflect CUDA 7.5 (I rebuilt my sever so i am now on the latest)
+
 ###10/25/2015
 1. Major changes, no more GUI. You can tail the log file. There will be a GUI to interface with it soon
 2. A little better with error recovery, runs off job files but i need to make it see that a job file exsists so it can finish it
 3. 4x mode works! Kindof, it has no EMPH support so it can fail on 2nd pass
 4. Now supports max input size
+
 ###10/29/2015
 1. Uses getopts for options
 2. Injects Works! and also has Append mode too.
