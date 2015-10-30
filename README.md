@@ -26,7 +26,7 @@ Mugino CSS is a batch/project image scaler that uses Waifu2x, MCSS comes with EM
 
 ## Usage
 Run it with no options or -h option to see how to set the options
-Example:
+
 Run 2x with default I/O
 ```
 mcss-run.sh -x run
