@@ -25,6 +25,7 @@ Mugino CSS is a batch/project image scaler that uses Waifu2x, MCSS comes with EM
   4. Change what is the max size a image can be before EMPH is triggered, a.k.a. how large before it hits your systems RAM limit
 
 ## Usage
+```
 MCSS-RUN -x <S> -m <S> [-n] [-i <S>] [-o <S>] [-k or -K] [-O <#>] [-c]
 
 	-x Exec Mode (String)
@@ -64,7 +65,7 @@ MCSS-RUN -x <S> -m <S> [-n] [-i <S>] [-o <S>] [-k or -K] [-O <#>] [-c]
 		When dealing with a non-static input, this will copy the input for safty
 
 	-y Will skip confirm and run
-
+```
 
 ### Examples
 
