@@ -202,27 +202,15 @@ RT_WORKER()
 			# Get Settings and determin commnd line options
 			item_settings=$(awk -F : '{print $5}' < <(echo $item))
 			if [ $item_settings = 1 ]; then
-				if [ $item_mode = 0 ]; then
-					prossmode="noise -noise_level 1"
-					settingstext="NR"
-				else
-					prossmode="noise_scale -noise_level 1"
-					settingstext="${item_mode}x+NR"				
-				fi
+				if [ $item_mode = 0 ]; then prossmode="noise -noise_level 1"; settingstext="NR"
+				else prossmode="noise_scale -noise_level 1"; settingstext="${item_mode}x+NR"; fi
 			fi
-			if [ $item_settings = 0 ]; then
-				prossmode="scale"
-				settingstext="${item_mode}x"
-			fi
+			if [ $item_settings = 0 ]; then prossmode="scale"; settingstext="${item_mode}x"; fi
 			# Does it require EMPH
 			item_prepross=$(awk -F : '{print $8}' < <(echo $item) | awk -F - '{print $1}')
 			# STD item, do not run EMPH
-			if [ $item_prepross = "STD" ]; then
-				item_prepross=0
-			else
-				#EMPH needed, get the grid size
-				item_prepross=1
-				item_emphgrid=$(awk -F : '{print $8}' < <(echo $item) | awk -F - '{print $2}')
+			if [ $item_prepross = "STD" ]; then item_prepross=0
+			else item_prepross=1; item_emphgrid=$(awk -F : '{print $8}' < <(echo $item) | awk -F - '{print $2}')
 			fi
 			# Get items dimentions, file type, and its file size
 			item_dimen="$(awk -F : '{print $9}' < <(echo $item)) x $(awk -F : '{print $10}' < <(echo $item))"
@@ -236,8 +224,6 @@ RT_WORKER()
 				# Cut file by given grid
 				echo "[EMPH] >>>> Prepareing ${item_emphgrid} grid..." >> ${VAL_DIR_CSS}/mcss.log
 				convert "${item_in}${item_filename}" -crop ${item_emphgrid}@ +repage +adjoin "emo_block_%d" &>> ${VAL_DIR_CSS}/mcss.log
-				currentblock=1
-				#break
 				echo "[Meltdowner] >>>> Running Meltdowner on blocks..." >> ${VAL_DIR_CSS}/mcss.log
 				for block in emo_block_*; do
 					cd  /opt/mugino-css/waifu2x/
@@ -249,7 +235,6 @@ RT_WORKER()
 					else
 						th waifu2x.lua -m ${prossmode} -i "${VAL_DIR_TEMP}/in/${block}"  -o "${VAL_DIR_TEMP}/out/${block}.png"  &>> ${VAL_DIR_CSS}/mcss.log
 					fi
-					currentblock=$(( currentblock + 1 ))
 				done
 				cd "${VAL_DIR_TEMP}/out"
 				# If there is more then 9, rename them
