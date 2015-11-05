@@ -22,6 +22,7 @@ VAL_DIR_INJECT_IN="$(awk -F : '{print $12}' < <(echo "${1}"))"
 VAL_DIR_CSS="$(awk -F : '{print $13}' < <(echo "${1}"))"
 VAL_DIR_TEMP="$(awk -F : '{print $14}' < <(echo "${1}"))"
 VAL_DIR_CPIN="$(awk -F : '{print $15}' < <(echo "${1}"))"
+SET_MODE_MAXINSE="$(awk -F : '{print $16}' < <(echo "${1}"))"
 VAL_TOTAL_PROJ=0
 VAL_TOTAL_SITM=0
 mastertitle="Mugino CSS v2.71_29-10-2015"
@@ -30,6 +31,7 @@ gpucores="$(/cuda/NVIDIA_CUDA-7.5_Samples/1_Utilities/deviceQuery/deviceQuery | 
 
 RT_TGKFW-F2P()
 {
+	outdata=0
 	#Get HxW
 	hf=$(identify -format "%h" "${1}${3}" 2>> ${VAL_DIR_CSS}/mcss.log)
 	wf=$(identify -format "%w" "${1}${3}" 2>> ${VAL_DIR_CSS}/mcss.log)
@@ -44,15 +46,24 @@ RT_TGKFW-F2P()
 	fi
 	#Check if Inkect
 	if [ ${SET_MODE_INJ} = 1 ]; then
-		# If file falls within rangle run EMPH
-		if [ $le_res -ge $SET_VAL_EMPH_TRIG ] 2>> ${VAL_DIR_CSS}/mcss.log; then
-			#Mark for EMPH
-			echo "[TKG2] 		INJECT-EMPH -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-			echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:EMPH-$(CALC_CROP $le_res):${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):1" 1>> ${VAL_DIR_CSS}/inject.projob
+		# Does it not use Max Input Size filtering
+		if [ $SET_VAL_MAXINRES = 0 ]; then
+			# If file falls within rangle run EMPH
+			if [ $le_res -ge $SET_VAL_EMPH_TRIG ] 2>> ${VAL_DIR_CSS}/mcss.log; then
+				#Mark for EMPH
+				outdata=4
+			else
+				outdata=3
+			fi
 		else
-			# Mark for normal
-			echo "[TKG2] 		INJECT-STD -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-			echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:STD-X:${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):1" 1>> ${VAL_DIR_CSS}/inject.projob
+			if [ $SET_MODE_MAXINSE = 1 ]; then eval_res=$se_res; else eval_res=$le_res; fi
+			if [ $eval_res -le $SET_VAL_MAXINRES ]; then
+				#Mark for EMPH
+					outdata=2
+			else
+					# Mark for normal
+					outdata=1
+			fi
 		fi
 	# If its not a Inject do this
 	else
@@ -61,28 +72,39 @@ RT_TGKFW-F2P()
 			# If file falls within rangle run EMPH
 			if [ $le_res -ge $SET_VAL_EMPH_TRIG ] 2>> ${VAL_DIR_CSS}/mcss.log; then
 				#Mark for EMPH
-				echo "[TKG2] 		EMPH -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-				echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:EMPH-$(CALC_CROP $le_res):${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+				outdata=2
 			else
 				# Mark for normal
-				echo "[TKG2] 		STD -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-				echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:STD-X:${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+				outdata=1
 			fi
 		# Max Input Size filtering
 		else
-			if [ $le_res -le $SET_VAL_MAXINRES  ]; then
+			if [ $SET_MODE_MAXINSE = 1 ]; then eval_res=$se_res; else eval_res=$le_res; fi
+			if [ $eval_res -le $SET_VAL_MAXINRES ]; then
 				# If file falls within rangle run EMPH
 				if [ $le_res -ge $SET_VAL_EMPH_TRIG ] 2>> ${VAL_DIR_CSS}/mcss.log; then
 					#Mark for EMPH
-					echo "[TKG2] 		EMPH -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-					echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:EMPH-$(CALC_CROP $le_res):${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+					outdata=2
 				else
 					# Mark for normal
-					echo "[TKG2] 		STD -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
-					echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:STD-X:${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+					outdata=1
 				fi
 			fi
 		fi
+	fi
+	
+	if [ $outdata = 1 ]; then 
+		echo "[TKG2] 		STD -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
+		echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:STD-X:${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+	elif [ $outdata = 2 ]; then 
+		echo "[TKG2] 		EMPH -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
+		echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:EMPH-$(CALC_CROP $le_res):${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/taskmgr.projob
+	elif [ $outdata = 3 ]; then 
+		echo "[TKG2] 		INJECT-STD -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
+		echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:STD-X:${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):1" 1>> ${VAL_DIR_CSS}/inject.projob
+	elif [ $outdata = 4 ]; then
+		echo "[TKG2] 		INJECT-EMPH -> ${hf}x${wf} / ${mf} / ${3}" >> ${VAL_DIR_CSS}/mcss.log
+		echo "${1}:${2}:${3}:${4}:${5}:${6}:${7}:EMPH-$(CALC_CROP $le_res):${hf}:${wf}:${le_res}:${mf}:$(du -sh "${1}${3}" | cut -c -4 | sed -e 's/^[ \t]*//'):0" 1>> ${VAL_DIR_CSS}/inject.projob
 	fi
 	##### Input:Output:File:Mode:NR:Project:ProjectNum:Preproccess > projob file
 }
@@ -360,34 +382,55 @@ LOG_HEADER()
 }
 
 if [ $SET_MODE_EXEC = "run" ]; then
+	[[ -f ${VAL_DIR_CSS}/.state_run ]] && exit 1
 	LOG_HEADER; echo "[CORE] Called as Prep-only Mode" >> ${VAL_DIR_CSS}/mcss.log
+	touch ${VAL_DIR_CSS}/.state_run
 	rm ${VAL_DIR_CSS}/taskmgr.projob 2> /dev/null
 	RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_MASTER_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
 	RT_WORKER
 	rm ${VAL_DIR_CSS}/taskmgr.projob 2> /dev/null
+	rm ${VAL_DIR_CSS}/.state_run
 elif [ $SET_MODE_EXEC = "prep" ]; then
+	[[ -f ${VAL_DIR_CSS}/.state_run ]] && exit 1
 	LOG_HEADER; echo "[CORE] Called as Prep-only Mode" >> ${VAL_DIR_CSS}/mcss.log
 	#Prepare Job file, useful if not running at that moment
 	rm ${VAL_DIR_CSS}/taskmgr.projob 2> /dev/null
 	RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_MASTER_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
 elif [ $SET_MODE_EXEC = "p-run" ]; then
+	[[ -f ${VAL_DIR_CSS}/.state_run ]] && exit 1
 	LOG_HEADER; echo "[CORE] Called as Run Mode" >> ${VAL_DIR_CSS}/mcss.log
+	touch ${VAL_DIR_CSS}/.state_run
 	RT_WORKER
 	rm ${VAL_DIR_CSS}/taskmgr.projob 2> /dev/null
+	rm ${VAL_DIR_CSS}/.state_run
 elif [ $SET_MODE_EXEC = "inject" ]; then
 	# Inject items into the current job
-	SET_MODE_INJ=1
-	rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
-	RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_INJECT_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
-	RT_TGKFW-INJ
-	rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+	if [ -f ${VAL_DIR_CSS}/.state_run ]; then	
+		SET_MODE_INJ=1
+		rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+		RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_INJECT_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
+		RT_TGKFW-INJ
+		rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+	else
+		echo "" >> ${VAL_DIR_CSS}/mcss.log
+		echo "[MSA] The worker was detected to not be running" >> ${VAL_DIR_CSS}/mcss.log
+		echo "" >> ${VAL_DIR_CSS}/mcss.log
+		exit 1
+	fi
 elif [ $SET_MODE_EXEC = "append" ]; then
 	# Inject items into the current job
-	SET_MODE_INJ=1
-	rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
-	RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_INJECT_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
-	RT_TGKFW-ADD
-	rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+	if [ -f ${VAL_DIR_CSS}/.state_run ]; then
+		SET_MODE_INJ=1
+		rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+		RT_TGKFW $SET_MODE_SCALE $SET_MODE_NR "${VAL_DIR_INJECT_IN}" "${VAL_DIR_MASTER_OUT}" $SET_MODE_CPIN $SET_MODE_KIFR
+		RT_TGKFW-ADD
+		rm ${VAL_DIR_CSS}/inject.projob 2> /dev/null
+	else
+		echo "" >> ${VAL_DIR_CSS}/mcss.log
+		echo "[MSA] The worker was detected to not be running" >> ${VAL_DIR_CSS}/mcss.log
+		echo "" >> ${VAL_DIR_CSS}/mcss.log
+		exit 1
+	fi
 elif [ $SET_MODE_EXEC = "recover" ]; then
 	LOG_HEADER; echo "[CORE] Called as Image Recovery Mode" >> ${VAL_DIR_CSS}/mcss.log
 	[ -d "${VAL_DIR_MASTER_OUT}/Recovery/" ] || mkdir -p "${VAL_DIR_MASTER_OUT}/Recovery/"
@@ -398,3 +441,7 @@ else
 fi
 
 if [ $SET_MODE_INJ = 1 ]; then echo "---------------------------------------------------------------------------" >> ${VAL_DIR_CSS}/mcss.log; fi
+
+echo "----- $(date) -------------------------------------------------------------" >> ${VAL_DIR_CSS}/mcss.log
+echo "" >> ${VAL_DIR_CSS}/mcss.log
+echo "" >> ${VAL_DIR_CSS}/mcss.log

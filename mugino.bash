@@ -27,9 +27,10 @@ SET_MODE_NR=0
 SET_MODE_SCALE=2
 SET_MODE_KIFR=0
 SET_VAL_MAXINRES=0
+SET_MODE_MAXINSE=0
 SET_MODE_CPIN=0
 SET_MODE_NOCHECK=0
-
+debugmode=0
 # Define Main Back Title and GPU Name
 mastertitle="Mugino CSS v2.71_29-10-2015"
 
@@ -38,7 +39,7 @@ USAGE()
 {
 	echo "$mastertitle"
 	echo "------------------------------------------------"
-	echo "USAGE: -x <S> -m <S> [-n] [-i <S>] [-o <S>] [-k or -K] [-O <#>] [-c]"
+	echo "USAGE: -x <S> -m <S> [-n] [-i <S>] [-o <S>] [-k or -K] [-O <#>[_s] [-c] [-y]"
 	echo ""
 	echo "	-x Exec Mode (String)"
 	echo "		run - Runs a new job"
@@ -59,6 +60,9 @@ USAGE()
 	echo "		Overrides the default dirs"
 	echo "		DO NOT PUT A '/' ON THE END "
 	echo ""
+	echo "	-c Move input items"
+	echo "		When dealing with a non-static input, this will copy the input for safty"
+	echo ""
 	echo "	-k KIFR (Keep Input for Recovery)"
 	echo "		This uses steganography to place the original file in the output for recovery"
 	echo "		Uses the Input image file as a payload"
@@ -70,11 +74,10 @@ USAGE()
 	echo "		 3. This will take some CPU power to pull off and will extend the time"
 	echo "		 4. This does not play well with transparent images, transparently will become black"
 	echo "		    in areas that it has written to. So some images will be half transparent half black bg"
+	echo "		 5. The embedding can fail when doing NR only as the file size may not be big enough"
 	echo ""
 	echo "	-O Omit (Number), Omit any file that is larger then X"
-	echo ""
-	echo "	-c Move input items"
-	echo "		When dealing with a non-static input, this will copy the input for safty"
+	echo "		Add_s to use short edge, default is long edge"
 	echo ""
 	echo "	-y Will skip confirm and run"
 }
@@ -83,7 +86,7 @@ if [ $# -lt 2 ]; then echo "[PEBKAC] You need to define options, use -h"; USAGE;
 
 echo ""; echo "$mastertitle"; echo "------------------------------------------------"
 
-while getopts ":x:m:ni:o:kO:hcy" opt; do
+while getopts ":x:m:ni:o:kO:hcyV" opt; do
   case $opt in
     x) SET_MODE_EXEC=$OPTARG;;
 	m) SET_MODE_SCALE=$OPTARG;;
@@ -91,14 +94,17 @@ while getopts ":x:m:ni:o:kO:hcy" opt; do
 	i) if [ $SET_MODE_EXEC = "inject" ]; then VAL_DIR_INJECT_IN="$OPTARG"; else VAL_DIR_MASTER_IN="$OPTARG"; fi;;
 	o) VAL_DIR_MASTER_OUT="$OPTARG" >&2;;
 	k) SET_MODE_KIFR=1;;
-	O) SET_VAL_MAXINRES=$OPTARG;;
+	O) SET_VAL_MAXINRES=$(awk -F _ '{print $1}' < <(echo "$OPTARG")); if [ $(awk -F _ '{print $2}' < <(echo "$OPTARG") || echo l) = "s" ]; then SET_MODE_MAXINSE=1; fi;;
 	c) SET_MODE_CPIN=1; echo "[E500] Not Implimented, will be ignored, Abort";;
 	y) SET_MODE_NOCHECK=1;;
 	h) USAGE; exit 1;;
+	V) debugmode=1;;
     \?) echo "[PEBKAC] WTF is -$OPTARG?, thats not a accepted option, Abort"; USAGE; exit 1;;
     :) echo "[PEBKAC] -$OPTARG requires an argument, Abort"; USAGE; exit 1;;
   esac
 done
+
+
 
 if [ $SET_MODE_NOCHECK = 0 ]; then
 	if [ $SET_MODE_EXEC = "run" ]; then
@@ -107,7 +113,7 @@ if [ $SET_MODE_NOCHECK = 0 ]; then
 		if [ $SET_MODE_NR = 1 ]; then echo "Noise Reduction: ON"; else echo "Noise Reduction: OFF"; fi
 		echo "Input: ${VAL_DIR_MASTER_IN}"
 		echo "Output: ${VAL_DIR_MASTER_OUT}"
-		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px"; fi
+		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px $(if [ $SET_MODE_MAXINSE = 1 ]; then echo "(Short Edge)"; fi)"; fi
 		if [ $SET_MODE_KIFR = 0 ]; then echo "Input Recovery: OFF"; else echo "Input Recovery: ON"; fi
 		if [ $SET_MODE_CPIN = 0 ]; then echo "Copy Input: OFF"; else echo "Copy Input: ON"; fi
 	elif [ $SET_MODE_EXEC = "prep" ]; then
@@ -116,7 +122,7 @@ if [ $SET_MODE_NOCHECK = 0 ]; then
 		if [ $SET_MODE_NR = 1 ]; then echo "Noise Reduction: ON"; else echo "Noise Reduction: OFF"; fi
 		echo "Input: ${VAL_DIR_MASTER_IN}"
 		echo "Output: ${VAL_DIR_MASTER_OUT}"
-		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px"; fi
+		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px $(if [ $SET_MODE_MAXINSE = 1 ]; then echo "(Short Edge)"; fi)"; fi
 		if [ $SET_MODE_KIFR = 0 ]; then echo "Input Recovery: OFF"; else echo "Input Recovery: ON"; fi
 		if [ $SET_MODE_CPIN = 0 ]; then echo "Copy Input: OFF"; else echo "Copy Input: ON"; fi
 	elif [ $SET_MODE_EXEC = "p-run" ]; then
@@ -128,7 +134,7 @@ if [ $SET_MODE_NOCHECK = 0 ]; then
 		if [ $SET_MODE_NR = 1 ]; then echo "Noise Reduction: ON"; else echo "Noise Reduction: OFF"; fi
 		echo "Input: ${VAL_DIR_INJECT_IN}"
 		echo "Output: ${VAL_DIR_MASTER_OUT}"
-		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px"; fi
+		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px $(if [ $SET_MODE_MAXINSE = 1 ]; then echo "(Short Edge)"; fi)"; fi
 		if [ $SET_MODE_KIFR = 0 ]; then echo "Input Recovery: OFF"; else echo "Input Recovery: ON"; fi
 		if [ $SET_MODE_CPIN = 0 ]; then echo "Copy Input: OFF"; else echo "Copy Input: ON"; fi
 	elif [ $SET_MODE_EXEC = "append" ]; then
@@ -137,7 +143,7 @@ if [ $SET_MODE_NOCHECK = 0 ]; then
 		if [ $SET_MODE_NR = 1 ]; then echo "Noise Reduction: ON"; else echo "Noise Reduction: OFF"; fi
 		echo "Input: ${VAL_DIR_INJECT_IN}"
 		echo "Output: ${VAL_DIR_MASTER_OUT}"
-		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px"; fi
+		if [ $SET_VAL_MAXINRES = 0 ]; then echo "Max Input: OFF"; else echo "Max Input: <= ${SET_VAL_MAXINRES}px $(if [ $SET_MODE_MAXINSE = 1 ]; then echo "(Short Edge)"; fi)"; fi
 		if [ $SET_MODE_KIFR = 0 ]; then echo "Input Recovery: OFF"; else echo "Input Recovery: ON"; fi
 		if [ $SET_MODE_CPIN = 0 ]; then echo "Copy Input: OFF"; else echo "Copy Input: ON"; fi
 	elif [ $SET_MODE_EXEC = "recover" ]; then
@@ -157,4 +163,28 @@ if [ $SET_MODE_NOCHECK = 0 ]; then
 	esac
 elif [ $SET_MODE_NOCHECK = 1 ]; then echo "Tail log for status"; fi
 
-nohup bash ${VAL_DIR_CSS}/mugino-worker.bash  "MCSS-IPPvCommit-9c4ce55d-be5e-4411-987a-d1db09127f9a:${SET_MODE_EXEC}:${SET_MODE_INJ}:${SET_MODE_SCALE}:${SET_MODE_NR}:${SET_VAL_MAXINRES}:${SET_MODE_KIFR}:${SET_MODE_CPIN}:${SET_VAL_EMPH_TRIG}:${VAL_DIR_MASTER_IN}:${VAL_DIR_MASTER_OUT}:${VAL_DIR_INJECT_IN}:${VAL_DIR_CSS}:${VAL_DIR_TEMP}:${VAL_DIR_CPIN}" &
+if [ $debugmode = 0 ]; then 
+nohup bash ${VAL_DIR_CSS}/mugino-worker.bash  "MCSS-IPPvCommit-9c4ce55d-be5e-4411-987a-d1db09127f9a:${SET_MODE_EXEC}:${SET_MODE_INJ}:${SET_MODE_SCALE}:${SET_MODE_NR}:${SET_VAL_MAXINRES}:${SET_MODE_KIFR}:${SET_MODE_CPIN}:${SET_VAL_EMPH_TRIG}:${VAL_DIR_MASTER_IN}:${VAL_DIR_MASTER_OUT}:${VAL_DIR_INJECT_IN}:${VAL_DIR_CSS}:${VAL_DIR_TEMP}:${VAL_DIR_CPIN}:${SET_MODE_MAXINSE}" &
+fi
+if [ $debugmode = 1 ]; then
+echo "DEBUG MODE ON"
+echo "Sending these vars to the worker:"
+echo "NOENTRYCODE: MCSS-IPPvCommit-9c4ce55d-be5e-4411-987a-d1db09127f9a"
+echo "EXEC MODE: ${SET_MODE_EXEC}"
+echo "INJECT SWITCH: ${SET_MODE_INJ}"
+echo "SCALE MODE: ${SET_MODE_SCALE}"
+echo "NOISE REDUCTION SWITCH: ${SET_MODE_NR}"
+echo "MAX INPUT RES VAL: ${SET_VAL_MAXINRES}"
+echo "KIFR SWITCH: ${SET_MODE_KIFR}"
+echo "CPIN SWITCH: ${SET_MODE_CPIN}"
+echo "EMPH TRIGGER VAL: ${SET_VAL_EMPH_TRIG}"
+echo "MASTER IN VAL: ${VAL_DIR_MASTER_IN}"
+echo "MASTER OUT VAL: ${VAL_DIR_MASTER_OUT}"
+echo "MASTER INJECT IN VAL: ${VAL_DIR_INJECT_IN}"
+echo "SYSTEM DIR VAL: ${VAL_DIR_CSS}"
+echo "TEMP DIR VAL: ${VAL_DIR_TEMP}"
+echo "CPIN DIR VAL: ${VAL_DIR_CPIN}"
+echo "SHORTEND SWITCH: ${SET_MODE_MAXINSE}"
+sleep 2
+bash -x ${VAL_DIR_CSS}/mugino-worker.bash  "MCSS-IPPvCommit-9c4ce55d-be5e-4411-987a-d1db09127f9a:${SET_MODE_EXEC}:${SET_MODE_INJ}:${SET_MODE_SCALE}:${SET_MODE_NR}:${SET_VAL_MAXINRES}:${SET_MODE_KIFR}:${SET_MODE_CPIN}:${SET_VAL_EMPH_TRIG}:${VAL_DIR_MASTER_IN}:${VAL_DIR_MASTER_OUT}:${VAL_DIR_INJECT_IN}:${VAL_DIR_CSS}:${VAL_DIR_TEMP}:${VAL_DIR_CPIN}:${SET_MODE_MAXINSE}"
+fi
